@@ -72,12 +72,47 @@ model User {
   name          String?
   passwordHash  String?
   role          Role     @default(STAFF)
+  plan          Plan     @default(FREE)
+  planExpiresAt DateTime?
+  paystackCustomerId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  payments      Payment[]
 }
 
 enum Role {
   ADMIN
   MANAGER
   STAFF
+}
+
+enum Plan {
+  FREE
+  STARTER
+  BUSINESS
+  ENTERPRISE
+}
+
+// Payment records
+model Payment {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  amount          Int      // in kobo
+  currency        String   @default("NGN")
+  reference       String   @unique
+  paystackRef     String?
+  status          PaymentStatus @default(PENDING)
+  plan            Plan
+  createdAt       DateTime @default(now())
+  paidAt          DateTime?
+  
+  @@index([userId])
+  @@index([reference])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }

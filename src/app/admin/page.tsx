@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSession, signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import QRCode from 'react-qr-code'
 
@@ -30,10 +32,9 @@ interface Location {
   queues: Queue[]
 }
 
-// Demo owner ID - in production this comes from auth
-const DEMO_OWNER_ID = 'demo-owner-123'
-
 export default function AdminDashboard() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [locations, setLocations] = useState<Location[]>([])
   const [selectedQueue, setSelectedQueue] = useState<Queue | null>(null)
   const [entries, setEntries] = useState<QueueEntry[]>([])
@@ -42,10 +43,22 @@ export default function AdminDashboard() {
   const [creating, setCreating] = useState(false)
   const [newLocationName, setNewLocationName] = useState('')
 
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/admin/login')
+    }
+  }, [status, router])
+
+  // Get owner ID from session
+  const ownerId = (session?.user as { id?: string })?.id
+
   // Fetch locations and queues
   const fetchLocations = useCallback(async () => {
+    if (!ownerId) return
+    
     try {
-      const res = await fetch(`/api/locations?ownerId=${DEMO_OWNER_ID}`)
+      const res = await fetch(`/api/locations?ownerId=${ownerId}`)
       const data = await res.json()
       setLocations(Array.isArray(data) ? data : [])
       
@@ -58,7 +71,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [selectedQueue])
+  }, [selectedQueue, ownerId])
 
   // Fetch entries for selected queue
   const fetchEntries = useCallback(async () => {
@@ -87,7 +100,7 @@ export default function AdminDashboard() {
   }, [selectedQueue, fetchEntries])
 
   const createLocation = async () => {
-    if (!newLocationName.trim()) return
+    if (!newLocationName.trim() || !ownerId) return
     setCreating(true)
 
     try {
@@ -96,7 +109,7 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newLocationName.trim(),
-          ownerId: DEMO_OWNER_ID
+          ownerId
         })
       })
 
@@ -147,7 +160,7 @@ export default function AdminDashboard() {
   const calledEntry = entries.find(e => e.status === 'CALLED' || e.status === 'SERVING')
   const allQueues = locations.flatMap(l => l.queues)
 
-  if (loading) {
+  if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
@@ -156,6 +169,10 @@ export default function AdminDashboard() {
         </div>
       </div>
     )
+  }
+
+  if (!session) {
+    return null // Will redirect via useEffect
   }
 
   return (
@@ -168,8 +185,13 @@ export default function AdminDashboard() {
             <span className="text-sm font-normal text-gray-500 ml-2">Admin</span>
           </Link>
           <div className="flex items-center gap-4">
-            <span className="text-gray-600">{locations[0]?.name || 'No Location'}</span>
-            <Link href="/admin/login" className="text-gray-500 hover:text-gray-700">Logout</Link>
+            <span className="text-gray-600">{session.user?.name || session.user?.email}</span>
+            <button 
+              onClick={() => signOut({ callbackUrl: '/admin/login' })}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </header>
