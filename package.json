@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@prisma/client": "^7.3.0",
+    "@yudiel/react-qr-scanner": "^2.5.1",
+    "bcryptjs": "^3.0.3",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
     "prisma": "^7.3.0",
@@ -17,6 +19,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-qr-code": "^2.0.18",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

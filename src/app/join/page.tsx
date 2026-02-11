@@ -1,14 +1,40 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense, lazy } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function JoinQueue() {
-  const [queueCode, setQueueCode] = useState('')
+// Lazy load QR scanner to avoid SSR issues
+const QRScanner = lazy(() => import('@/components/QRScanner'))
+
+function JoinQueueContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialCode = searchParams.get('q') || ''
+
+  const [queueCode, setQueueCode] = useState(initialCode)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [step, setStep] = useState<'scan' | 'details' | 'success'>('scan')
-  const [ticketNumber, setTicketNumber] = useState<number | null>(null)
+  const [showScanner, setShowScanner] = useState(false)
+  const [step, setStep] = useState<'scan' | 'details' | 'loading' | 'success'>('scan')
+  const [ticketData, setTicketData] = useState<{
+    id: string
+    ticketNumber: number
+    position: number
+    estimatedWaitMinutes: number
+    queueName: string
+    locationName: string
+  } | null>(null)
+  const [error, setError] = useState('')
+
+  const handleQRScan = (result: string) => {
+    // Extract queue code from URL or use raw value
+    const urlMatch = result.match(/[?&]q=([^&]+)/)
+    const code = urlMatch ? urlMatch[1] : result
+    setQueueCode(code)
+    setShowScanner(false)
+    setStep('details')
+  }
 
   const handleCodeSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,10 +45,32 @@ export default function JoinQueue() {
 
   const handleJoinQueue = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: API call to join queue
-    // For now, simulate success
-    setTicketNumber(Math.floor(Math.random() * 100) + 1)
-    setStep('success')
+    setError('')
+    setStep('loading')
+
+    try {
+      const res = await fetch('/api/queues/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          queueId: queueCode,
+          name: name.trim() || undefined,
+          phone: phone.trim() || undefined
+        })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to join queue')
+      }
+
+      setTicketData(data)
+      setStep('success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setStep('details')
+    }
   }
 
   return (
@@ -43,16 +91,38 @@ export default function JoinQueue() {
               Join a Queue
             </h1>
 
-            {/* QR Scanner Placeholder */}
-            <div className="bg-gray-100 rounded-xl p-8 mb-6 text-center">
-              <div className="text-6xl mb-4">📷</div>
-              <p className="text-gray-600 mb-4">
-                Scan QR code to join queue
-              </p>
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                Open Camera
-              </button>
-            </div>
+            {/* QR Scanner */}
+            {showScanner ? (
+              <div className="mb-6">
+                <Suspense fallback={
+                  <div className="bg-gray-100 rounded-xl p-8 text-center">
+                    <div className="animate-spin text-4xl mb-4">⏳</div>
+                    <p className="text-gray-600">Loading camera...</p>
+                  </div>
+                }>
+                  <QRScanner onScan={handleQRScan} />
+                </Suspense>
+                <button
+                  onClick={() => setShowScanner(false)}
+                  className="w-full mt-4 text-gray-600 py-2"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="bg-gray-100 rounded-xl p-8 mb-6 text-center">
+                <div className="text-6xl mb-4">📷</div>
+                <p className="text-gray-600 mb-4">
+                  Scan QR code to join queue
+                </p>
+                <button 
+                  onClick={() => setShowScanner(true)}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Open Camera
+                </button>
+              </div>
+            )}
 
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
@@ -68,10 +138,9 @@ export default function JoinQueue() {
               <input
                 type="text"
                 value={queueCode}
-                onChange={(e) => setQueueCode(e.target.value.toUpperCase())}
-                placeholder="Enter queue code (e.g., ABC123)"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-xl tracking-widest uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                maxLength={8}
+                onChange={(e) => setQueueCode(e.target.value)}
+                placeholder="Enter queue code"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-xl tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
               <button
                 type="submit"
@@ -90,13 +159,19 @@ export default function JoinQueue() {
               Almost there!
             </h1>
             <p className="text-gray-600 text-center mb-6">
-              Queue: <span className="font-semibold">{queueCode}</span>
+              Queue: <span className="font-semibold font-mono">{queueCode}</span>
             </p>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">
+                {error}
+              </div>
+            )}
 
             <form onSubmit={handleJoinQueue} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Your Name
+                  Your Name <span className="text-gray-400">(optional)</span>
                 </label>
                 <input
                   type="text"
@@ -104,13 +179,12 @@ export default function JoinQueue() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your name"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number (for notifications)
+                  Phone Number <span className="text-gray-400">(for SMS updates)</span>
                 </label>
                 <input
                   type="tel"
@@ -130,7 +204,7 @@ export default function JoinQueue() {
 
               <button
                 type="button"
-                onClick={() => setStep('scan')}
+                onClick={() => { setStep('scan'); setError('') }}
                 className="w-full text-gray-600 py-2"
               >
                 ← Back
@@ -139,46 +213,71 @@ export default function JoinQueue() {
           </div>
         )}
 
-        {step === 'success' && (
+        {step === 'loading' && (
+          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+            <div className="animate-spin text-6xl mb-4">⏳</div>
+            <p className="text-gray-600">Joining queue...</p>
+          </div>
+        )}
+
+        {step === 'success' && ticketData && (
           <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
             <div className="text-6xl mb-4">🎉</div>
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              You&apos;re in the queue!
+              You&apos;re in!
             </h1>
             
             <div className="bg-blue-50 rounded-xl p-6 my-6">
               <p className="text-gray-600 mb-2">Your ticket number</p>
-              <p className="text-5xl font-bold text-blue-600">#{ticketNumber}</p>
+              <p className="text-5xl font-bold text-blue-600">#{ticketData.ticketNumber}</p>
             </div>
 
             <div className="space-y-2 text-left bg-gray-50 rounded-lg p-4 mb-6">
               <div className="flex justify-between">
-                <span className="text-gray-600">Position in queue:</span>
-                <span className="font-semibold">3rd</span>
+                <span className="text-gray-600">Queue:</span>
+                <span className="font-semibold">{ticketData.queueName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Estimated wait:</span>
-                <span className="font-semibold">~15 mins</span>
+                <span className="text-gray-600">Location:</span>
+                <span className="font-semibold">{ticketData.locationName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">People ahead:</span>
-                <span className="font-semibold">2</span>
+                <span className="text-gray-600">Position:</span>
+                <span className="font-semibold">{ticketData.position}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Est. wait:</span>
+                <span className="font-semibold">~{ticketData.estimatedWaitMinutes} mins</span>
               </div>
             </div>
 
-            <p className="text-gray-600 text-sm mb-4">
-              We&apos;ll notify you when it&apos;s almost your turn!
-            </p>
+            {phone && (
+              <p className="text-sm text-gray-500 mb-4">
+                📱 We&apos;ll SMS you at {phone} when it&apos;s almost your turn
+              </p>
+            )}
 
-            <Link
-              href={`/status/${ticketNumber}`}
-              className="block w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            <button
+              onClick={() => router.push(`/status/${ticketData.id}`)}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
             >
-              Track My Position
-            </Link>
+              Track My Position →
+            </button>
           </div>
         )}
       </div>
     </main>
+  )
+}
+
+export default function JoinQueue() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin text-4xl">⏳</div>
+      </div>
+    }>
+      <JoinQueueContent />
+    </Suspense>
   )
 }
