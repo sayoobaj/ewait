@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sendQueueNotification } from '@/lib/sms'
 
 // POST /api/queues/join - Join a queue
 export async function POST(request: NextRequest) {
@@ -55,6 +56,15 @@ export async function POST(request: NextRequest) {
     })
 
     const estimatedWaitMinutes = (position - 1) * queue.avgServiceTime
+
+    // Send confirmation SMS
+    if (phone) {
+      sendQueueNotification(phone, 'joined', {
+        ticketNumber,
+        position,
+        queueName: queue.name
+      }).catch(console.error) // Fire and forget
+    }
 
     return NextResponse.json({
       id: entry.id,
