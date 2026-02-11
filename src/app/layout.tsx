@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Providers from "@/components/Providers";
+import PWAInstall from "@/components/PWAInstall";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,6 +17,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "eWait - Skip the Line",
   description: "Join queues instantly by scanning a QR code. No more waiting in physical lines.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "eWait",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  themeColor: "#2563eb",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 export default function RootLayout({
@@ -30,6 +47,7 @@ export default function RootLayout({
       >
         <Providers>
           {children}
+          <PWAInstall />
         </Providers>
       </body>
     </html>
