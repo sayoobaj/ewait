@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Business/Location that has queues
+model Location {
+  id          String   @id @default(cuid())
+  name        String
+  address     String?
+  phone       String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  queues      Queue[]
+}
+
+// A queue at a location (e.g., "Main Counter", "VIP Service")
+model Queue {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  locationId      String
+  location        Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  isActive        Boolean  @default(true)
+  avgServiceTime  Int      @default(5) // minutes
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  entries         QueueEntry[]
+  
+  @@index([locationId])
+}
+
+// A person waiting in a queue
+model QueueEntry {
+  id            String      @id @default(cuid())
+  queueId       String
+  queue         Queue       @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  ticketNumber  Int
+  name          String?
+  phone         String?
+  email         String?
+  partySize     Int         @default(1)
+  status        EntryStatus @default(WAITING)
+  joinedAt      DateTime    @default(now())
+  calledAt      DateTime?
+  servedAt      DateTime?
+  cancelledAt   DateTime?
+  notes         String?
+  
+  @@index([queueId, status])
+  @@index([queueId, ticketNumber])
+}
+
+enum EntryStatus {
+  WAITING
+  CALLED
+  SERVING
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// For admin users
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  passwordHash  String?
+  role          Role     @default(STAFF)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
