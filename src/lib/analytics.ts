@@ -26,14 +26,18 @@ export async function trackEvent(
     queueId?: string
     entryId?: string
     userId?: string
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, string | number | boolean>
   }
 ) {
   try {
     await prisma.analyticsEvent.create({
       data: {
         event,
-        ...data
+        locationId: data?.locationId,
+        queueId: data?.queueId,
+        entryId: data?.entryId,
+        userId: data?.userId,
+        metadata: data?.metadata ?? undefined
       }
     })
   } catch (error) {
