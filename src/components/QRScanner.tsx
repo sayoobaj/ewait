@@ -26,9 +26,13 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
     }
   }
 
-  const handleError = (error: Error) => {
+  const handleError = (error: unknown) => {
     console.error('QR Scanner error:', error)
-    onError?.(error)
+    if (error instanceof Error) {
+      onError?.(error)
+    } else {
+      onError?.(new Error(String(error)))
+    }
   }
 
   if (hasPermission === null) {
