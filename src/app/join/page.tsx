@@ -140,7 +140,7 @@ function JoinQueueContent() {
                 value={queueCode}
                 onChange={(e) => setQueueCode(e.target.value)}
                 placeholder="Enter queue code"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-xl tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-xl tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-400"
               />
               <button
                 type="submit"
@@ -178,7 +178,7 @@ function JoinQueueContent() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-400"
                 />
               </div>
 
@@ -191,7 +191,7 @@ function JoinQueueContent() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="08012345678"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-400"
                 />
               </div>
 
