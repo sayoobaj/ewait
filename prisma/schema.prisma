@@ -116,3 +116,57 @@ enum PaymentStatus {
   SUCCESS
   FAILED
 }
+
+// Analytics - Page views
+model PageView {
+  id          String   @id @default(cuid())
+  path        String
+  referrer    String?
+  userAgent   String?
+  ip          String?
+  country     String?
+  city        String?
+  locationId  String?  // If viewing a specific location
+  queueId     String?  // If viewing a specific queue
+  sessionId   String?  // Browser session
+  userId      String?  // If logged in
+  createdAt   DateTime @default(now())
+  
+  @@index([path])
+  @@index([locationId])
+  @@index([createdAt])
+}
+
+// Analytics - Events (joins, calls, completions)
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  event       String   // join_queue, call_next, complete, no_show, etc.
+  locationId  String?
+  queueId     String?
+  entryId     String?
+  userId      String?
+  metadata    Json?    // Additional data
+  createdAt   DateTime @default(now())
+  
+  @@index([event])
+  @@index([locationId])
+  @@index([queueId])
+  @@index([createdAt])
+}
+
+// Daily stats (aggregated)
+model DailyStats {
+  id              String   @id @default(cuid())
+  date            DateTime @db.Date
+  locationId      String
+  totalJoins      Int      @default(0)
+  totalServed     Int      @default(0)
+  totalNoShows    Int      @default(0)
+  totalCancelled  Int      @default(0)
+  avgWaitMinutes  Float?
+  peakHour        Int?     // 0-23
+  
+  @@unique([date, locationId])
+  @@index([locationId])
+  @@index([date])
+}
